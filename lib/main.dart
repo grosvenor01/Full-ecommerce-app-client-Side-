@@ -4,6 +4,7 @@ import 'package:full/nav.dart';
 import 'package:full/signin.dart';
 import 'package:full/signup.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:full/wish.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Signup(),
+      home: navbar(),
       routes: {
         "/home":(context) => home(),
         "/signup":(context) => Signup(),

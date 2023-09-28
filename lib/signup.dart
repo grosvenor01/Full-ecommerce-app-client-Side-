@@ -132,7 +132,7 @@ class _SignupState extends State<Signup> {
                     ElevatedButton(
                       onPressed: () {
                         googleLogin().then((_) {
-                          Navigator.pushNamed(context, "/home");
+                          Navigator.pushNamed(context, "/nav");
                           // You can also check if the user is already signed in using FirebaseAuth.instance.currentUser.
                         }).catchError((error) {
                           // Handle any errors that occur during the Google Sign-In process.
