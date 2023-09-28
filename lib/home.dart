@@ -1,4 +1,3 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,6 +12,7 @@ class home extends StatefulWidget {
 class _homeState extends State<home> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
+ 
   Future<void> _signOut() async {
     try {
       await _auth.signOut();
@@ -21,29 +21,10 @@ class _homeState extends State<home> {
       print("Error signing out: $e");
     }
   }
-
+  
   @override
   Widget build(BuildContext context) {
     CollectionReference products = firestore.collection("products");
-    Future<void> fetchDataAndPrint() async {
-      try {
-        final QuerySnapshot querySnapshot = await products.get();
-        if (querySnapshot.docs.isNotEmpty) {
-          for (QueryDocumentSnapshot document in querySnapshot.docs) {
-            final data = document.data() as Map<String, dynamic>;
-            final name = data['name'] as String;
-            print(name);
-            Containers(Color(0xFFDB3022), "-20%", 10, "Dorothy Perkins", name,
-                15, 12, "assets/pic2.png");
-          }
-        } else {
-          print("No data available.");
-        }
-      } catch (e) {
-        print("Error: $e");
-      }
-    }
-
     return Scaffold(
         body: SingleChildScrollView(
             child: Column(children: [
@@ -121,6 +102,7 @@ class _homeState extends State<home> {
                   final data = doc.data() as Map<String, dynamic>;
                   if (data["type"] == "Sale") {
                     return Containers(
+                      doc.id,
                       Color(0xFFDB3022),
                       data["pourcetage"],
                       data["reviews"],
@@ -189,6 +171,7 @@ class _homeState extends State<home> {
                     final data = doc.data() as Map<String, dynamic>;
                     if (data["type"] == "New") {
                       return Containers(
+                        doc.id,
                         Colors.black,
                         "New",
                         data["reviews"],
@@ -202,8 +185,7 @@ class _homeState extends State<home> {
                     return SizedBox();
                   }).toList(),
                 );
-              })
-        ),
+              })),
       const Padding(
           padding: EdgeInsets.only(left: 18, top: 20),
           child: Row(
@@ -235,56 +217,53 @@ class _homeState extends State<home> {
                 width: 10,
               )
             ],
-          )
-      ),
+          )),
       SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child:StreamBuilder<QuerySnapshot>(
-          stream: products.snapshots(),
-          builder:(BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return CircularProgressIndicator(); // Display a loading indicator while data is loading
-            }
-            if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
-            }
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return Text('No data available.');
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: snapshot.data!.docs.map((DocumentSnapshot doc) {
-              final data = doc.data() as Map<String, dynamic>;
-                if (data["type"] == "Top") {
-                  return Containers(
-                    Colors.transparent,
-                    "",
-                    data["reviews"],
-                    data['publisher'],
-                    data['name'],
-                    data['old_price'],
-                    data['new_price'],
-                    data['image']
-                  );
+          scrollDirection: Axis.horizontal,
+          child: StreamBuilder<QuerySnapshot>(
+              stream: products.snapshots(),
+              builder: (BuildContext context,
+                  AsyncSnapshot<QuerySnapshot> snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return CircularProgressIndicator(); // Display a loading indicator while data is loading
                 }
-                return SizedBox();
-              }
-              ).toList(),
-            );
-          }
-        )
-      )
+                if (snapshot.hasError) {
+                  return Text('Error: ${snapshot.error}');
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Text('No data available.');
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: snapshot.data!.docs.map((DocumentSnapshot doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    if (data["type"] == "Top") {
+                      return Containers(
+                          doc.id,
+                          Colors.transparent,
+                          "",
+                          data["reviews"],
+                          data['publisher'],
+                          data['name'],
+                          data['old_price'],
+                          data['new_price'],
+                          data['image']);
+                    }
+                    return SizedBox();
+                  }).toList(),
+                );
+              }))
     ])));
   }
 
-  Widget Containers(Color color, String pourcentage, int reviews, String name,
-      String title, int old, int newp, String pic) {
+  Widget Containers(String id,Color color, String pourcentage, int reviews, String name,
+    String title, int old, int newp, String pic) {
     return Container(
       height: 260,
       width: 140,
-      margin: EdgeInsets.only(left: 18, top: 18),
+      margin: const EdgeInsets.only(left: 18, top: 18),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(
+        const SizedBox(
           height: 6,
         ),
         Container(
@@ -295,20 +274,44 @@ class _homeState extends State<home> {
                 image:
                     DecorationImage(image: NetworkImage(pic), fit: BoxFit.fill),
                 borderRadius: BorderRadius.circular(10)),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                     height: 20,
                     width: 40,
-                    margin: EdgeInsets.only(left: 8, top: 8),
+                    margin: const EdgeInsets.only(left: 8, top: 8),
                     decoration: BoxDecoration(
                         color: color, borderRadius: BorderRadius.circular(10)),
                     child: Center(
                         child: Text(pourcentage,
                             style: const TextStyle(
                               color: Colors.white,
-                            ))))
+                            )))),
+                Padding(
+                    padding: const EdgeInsets.only(left: 40, top: 6),
+                    child: SizedBox(
+                        height: 30,
+                        width: 40,
+                        child: ElevatedButton(
+                            onPressed: () async {
+                              if (!(await FirebaseFirestore.instance
+                                      .collection("wishlist")
+                                      .where("name", isEqualTo: title)
+                                      .limit(1)
+                                      .get()).docs.isNotEmpty) {
+                                FirebaseFirestore.instance.collection("wishlist").add({
+                                  "product_ref":firestore.collection("products").doc(id)
+                                });
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              elevation: 0,
+                            ),
+                            child: Icon(Icons.favorite_border,
+                                color: Colors.grey))))
               ],
             )),
         SizedBox(
