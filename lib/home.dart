@@ -255,7 +255,6 @@ class _homeState extends State<home> {
               }))
     ])));
   }
-
   Widget Containers(String id,Color color, String pourcentage, int reviews, String name,
     String title, int old, int newp, String pic) {
     return Container(

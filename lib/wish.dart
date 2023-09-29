@@ -1,19 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:full/view1.dart';
 
 class Wishlist extends StatefulWidget {
   const Wishlist({super.key});
-
   @override
   State<Wishlist> createState() => _WishlistState();
 }
 
 final FirebaseAuth _auth = FirebaseAuth.instance;
 final FirebaseFirestore firestore = FirebaseFirestore.instance;
+int ordering = 0;
+int view = 1;
 
 class _WishlistState extends State<Wishlist> {
   CollectionReference wish_product = firestore.collection("wishlist");
+  void _showContextMenu(BuildContext context) async {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context)!.context.findRenderObject() as RenderBox;
+    final Offset position =
+        button.localToGlobal(Offset.zero, ancestor: overlay);
+    await showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy + 200.0,
+        position.dx + 200.0,
+        position.dy + button.size.height + 200,
+      ),
+      items: <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: 'lowestToHighest',
+          child: Text('Lowest to Highest'),
+        ),
+        PopupMenuItem<String>(
+          value: 'highestToLowest',
+          child: Text('Highest to Lowest'),
+        ),
+      ],
+    ).then((selectedValue) {
+      if (selectedValue == null) return; // No item was selected
+      switch (selectedValue) {
+        case 'lowestToHighest':
+          setState(() {
+            ordering = -1;
+          });
+          break;
+        case 'highestToLowest':
+          setState(() {
+            ordering = 1;
+          });
+          break;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,32 +104,51 @@ class _WishlistState extends State<Wishlist> {
                       Categories("Jeans"),
                     ],
                   )),
-              SizedBox(height: 14),
-              const Row(children: <Widget>[
+              const SizedBox(height: 14),
+              Row(children: <Widget>[
                 SizedBox(width: 14),
-                Icon(
-                  Icons.filter_list,
-                  color: Colors.black,
+                ElevatedButton(
+                  onPressed: () {
+                    _showContextMenu(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent),
+                  child: const Row(children: [
+                    Icon(
+                      Icons.swap_vert,
+                      color: Colors.black,
+                    ),
+                    SizedBox(
+                      width: 10,
+                    ),
+                    Text(
+                      "Price:Lowest to high",
+                      style: TextStyle(color: Colors.black),
+                    ),
+                  ]),
                 ),
-                SizedBox(
-                  width: 10,
+                const Spacer(),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent
+                  ),
+                  child: Icon(
+                    Icons.view_list_sharp,
+                    color: Colors.black,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      if (view == 1) {
+                        view = 0;
+                      } else {
+                        view = 1;
+                      }
+                    });
+                  },
                 ),
-                Text("Filters"),
-                Spacer(),
-                Icon(
-                  Icons.swap_vert,
-                  color: Colors.black,
-                ),
-                SizedBox(
-                  width: 10,
-                ),
-                Text("Price:Lowest to high"),
-                Spacer(),
-                Icon(
-                  Icons.view_list_sharp,
-                  color: Colors.black,
-                ),
-                SizedBox(
+                const SizedBox(
                   width: 10,
                 ),
               ]),
@@ -105,56 +167,133 @@ class _WishlistState extends State<Wishlist> {
                     return Text('No wishlist data found');
                   }
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children:
-                        snapshot.data!.docs.map((DocumentSnapshot wishlistDoc) {
-                      if (wishlistDoc.exists) {
-                        final wishlistId = wishlistDoc
-                            .id; // Get the ID of the wishlist document
-                        final productRef = wishlistDoc.get("product_ref")
-                            as DocumentReference; // Get the DocumentReference
+                  // Fetch all the wishlist documents
+                  final wishlistDocs = snapshot.data!.docs;
 
-                        return FutureBuilder<DocumentSnapshot>(
-                          future: productRef.get(),
-                          builder: (BuildContext context,
-                              AsyncSnapshot<DocumentSnapshot> productSnapshot) {
-                            if (productSnapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return CircularProgressIndicator();
-                            }
-                            if (productSnapshot.hasError) {
-                              return Text('Error: ${productSnapshot.error}');
-                            }
+                  // Fetch all product data based on product references
+                  final productFutures = wishlistDocs.map((wishlistDoc) {
+                    final productRef =
+                        wishlistDoc.get("product_ref") as DocumentReference;
+                    return productRef.get();
+                  }).toList();
 
-                            if (productSnapshot.hasData &&
-                                productSnapshot.data!.exists) {
-                              final data = productSnapshot.data!.data()
-                                  as Map<String, dynamic>;
-                              return Column(
-                                children: [
-                                  wish(
-                                    wishlistId,
-                                    data["image"],
-                                    data["publisher"],
-                                    data["name"],
-                                    "Grey",
-                                    "L",
-                                    data["new_price"],
-                                    data["reviews"],
-                                  ),
-                                ],
-                              );
-                            } else {
-                              return Text(
-                                  'Product not found for Wishlist ID: $wishlistId');
-                            }
-                          },
-                        );
-                      } else {
-                        return Text('Wishlist document does not exist');
+                  // Wait for all product data futures to complete
+                  return FutureBuilder<List<DocumentSnapshot>>(
+                    future: Future.wait(productFutures),
+                    builder: (BuildContext context,
+                        AsyncSnapshot<List<DocumentSnapshot>>
+                            productSnapshots) {
+                      if (productSnapshots.connectionState ==
+                          ConnectionState.waiting) {
+                        return CircularProgressIndicator();
                       }
-                    }).toList(),
+                      if (productSnapshots.hasError) {
+                        return Text('Error: ${productSnapshots.error}');
+                      }
+
+                      // Combine wishlist and product data into a list
+                      final combinedData = <Map<String, dynamic>>[];
+                      for (int i = 0; i < wishlistDocs.length; i++) {
+                        final wishlistDoc = wishlistDocs[i];
+                        final productSnapshot = productSnapshots.data![i];
+
+                        if (wishlistDoc.exists && productSnapshot.exists) {
+                          final wishlistId = wishlistDoc.id;
+                          final data =
+                              productSnapshot.data() as Map<String, dynamic>;
+
+                          combinedData.add({
+                            'wishlistId': wishlistId,
+                            'productData': data,
+                          });
+                        }
+                      }
+                      //lowest to high
+                      if (ordering == -1) {
+                        combinedData.sort((a, b) => (a['productData']
+                                ['new_price'] as int)
+                            .compareTo(b['productData']['new_price'] as int));
+                      }
+                      //high to lowest
+                      else if (ordering == 1) {
+                        combinedData.sort((b, a) => (a['productData']
+                                ['new_price'] as int)
+                            .compareTo(b['productData']['new_price'] as int));
+                      }
+
+                      // Build your UI with the sorted and combined data
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (view == 0)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: combinedData.map((item) {
+                                final wishlistId = item['wishlistId'];
+                                final productData = item['productData'];
+                                return wish(
+                                  wishlistId,
+                                  productData['image'],
+                                  productData['publisher'],
+                                  productData['name'],
+                                  "Grey",
+                                  "L",
+                                  productData['new_price'],
+                                  productData['reviews'],
+                                );
+                              }).toList(),
+                            ),
+                          if (view == 1)
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: ClampingScrollPhysics(),
+                              itemCount: combinedData.length ~/
+                                  2, // Display two items in each row
+                              itemBuilder: (BuildContext context, int index) {
+                                final startIndex = index * 2;
+                                final item1 = combinedData[startIndex];
+                                final item2 = combinedData[startIndex + 1];
+
+                                final wishlistId1 = item1['wishlistId'];
+                                final wishlistId2 = item2['wishlistId'];
+
+                                final productData1 = item1['productData'];
+                                final productData2 = item2['productData'];
+
+                                final widget1 = dady(
+                                  wishlistId1,
+                                  productData1['reviews'],
+                                  productData1['publisher'],
+                                  productData1['name'],
+                                  productData1['old_price'],
+                                  productData1['new_price'],
+                                  productData1['image'],
+                                );
+
+                                final widget2 = dady(
+                                  wishlistId2,
+                                  productData2['reviews'],
+                                  productData2['publisher'],
+                                  productData2['name'],
+                                  productData2['old_price'],
+                                  productData2['new_price'],
+                                  productData2['image'],
+                                );
+
+                                return Row(
+                                  children: [
+                                    Spacer(),
+                                    widget1,
+                                    Spacer(),
+                                    widget2,
+                                    Spacer(),
+                                  ],
+                                );
+                              },
+                            )
+                        ],
+                      );
+                    },
                   );
                 },
               )
