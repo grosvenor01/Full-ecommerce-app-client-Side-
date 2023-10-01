@@ -31,11 +31,11 @@ class _WishlistState extends State<Wishlist> {
         position.dy + button.size.height + 200,
       ),
       items: <PopupMenuEntry<String>>[
-        PopupMenuItem<String>(
+        const PopupMenuItem<String>(
           value: 'lowestToHighest',
           child: Text('Lowest to Highest'),
         ),
-        PopupMenuItem<String>(
+        const PopupMenuItem<String>(
           value: 'highestToLowest',
           child: Text('Highest to Lowest'),
         ),
@@ -134,7 +134,7 @@ class _WishlistState extends State<Wishlist> {
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.view_list_sharp,
                     color: Colors.black,
                   ),
