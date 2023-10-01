@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:full/home.dart';
 import 'package:full/wish.dart';
-
+import 'package:full/bag.dart';
 int _currentIndex = 0;
-const  screens = <Widget> [home(), home(), home(), Wishlist(), home()];
+const  screens = <Widget> [home(), home(), bag(), Wishlist(), home()];
 
 class navbar extends StatefulWidget {
   const navbar({super.key});
