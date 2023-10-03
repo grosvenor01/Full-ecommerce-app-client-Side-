@@ -12,7 +12,7 @@ class home extends StatefulWidget {
 class _homeState extends State<home> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
- 
+
   Future<void> _signOut() async {
     try {
       await _auth.signOut();
@@ -21,7 +21,7 @@ class _homeState extends State<home> {
       print("Error signing out: $e");
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     CollectionReference products = firestore.collection("products");
@@ -255,8 +255,9 @@ class _homeState extends State<home> {
               }))
     ])));
   }
-  Widget Containers(String id,Color color, String pourcentage, int reviews, String name,
-    String title, int old, int newp, String pic) {
+
+  Widget Containers(String id, Color color, String pourcentage, int reviews,
+      String name, String title, int old, int newp, String pic) {
     return Container(
       height: 260,
       width: 140,
@@ -296,11 +297,16 @@ class _homeState extends State<home> {
                             onPressed: () async {
                               if (!(await FirebaseFirestore.instance
                                       .collection("wishlist")
-                                      .where("name", isEqualTo: title)
+                                      .where("product_ref", isEqualTo: firestore.collection("products").doc(id))
                                       .limit(1)
-                                      .get()).docs.isNotEmpty) {
-                                FirebaseFirestore.instance.collection("wishlist").add({
-                                  "product_ref":firestore.collection("products").doc(id)
+                                      .get())
+                                  .docs
+                                  .isNotEmpty) {
+                                FirebaseFirestore.instance
+                                    .collection("wishlist")
+                                    .add({
+                                  "product_ref":
+                                      firestore.collection("products").doc(id)
                                 });
                               }
                             },
