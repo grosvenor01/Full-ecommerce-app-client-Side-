@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:full/wish.dart';
 
 class containe extends StatefulWidget {
+  final String image;
   final String name;
   final String color;
   final String size;
   final int quantity;
   final int price_one;
+  final String bagid;
+  final String productref;
   const containe({
     Key? key,
+    required this.image,
     required this.name,
     required this.color,
     required this.size,
     required this.quantity,
     required this.price_one,
+    required this.bagid,
+    required this.productref,
   }) : super(key: key);
 
   @override
@@ -25,16 +34,22 @@ class _containeState extends State<containe> {
   late String size;
   late int quantity;
   late int price_one;
-
+  late String bagid;
+  late String productref;
+  late String image;
   @override
   void initState() {
     super.initState();
+    image = widget.image;
     name = widget.name;
     color = widget.color;
     size = widget.size;
     quantity = widget.quantity;
     price_one = widget.price_one;
+    bagid = widget.bagid;
+    productref = widget.productref;
   }
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -48,9 +63,9 @@ class _containeState extends State<containe> {
             height: 104,
             width: 100,
             decoration: BoxDecoration(
-                image: const DecorationImage(
+                image: DecorationImage(
                     image: NetworkImage(
-                        "https://static.nike.com/a/images/t_PDP_1280_v1/f_auto,q_auto:eco/b5ab0a6c-6393-4af6-abbc-4f1acaa6ed94/air-max-dawn-shoes-CLTL55.png"),
+                        image),
                     fit: BoxFit.cover)),
           ),
           Expanded(
@@ -130,12 +145,20 @@ class _containeState extends State<containe> {
                           elevation: 5,
                           shadowColor:
                               const Color.fromARGB(255, 223, 223, 223)),
-                      onPressed: () {
-                        setState(() {
-                          if (quantity > 0) {
+                      onPressed: () async {
+                        if (quantity > 0) {
+                          setState(() {
                             quantity--;
+                          });
+                          try {
+                            await firestore
+                                .collection("bag")
+                                .doc(bagid)
+                                .update({"quantity": quantity});
+                          } catch (e) {
+                            print('Error Updating field');
                           }
-                        });
+                        }
                       },
                       child: Icon(
                         Icons.remove,
@@ -155,10 +178,18 @@ class _containeState extends State<containe> {
                           elevation: 5,
                           shadowColor:
                               const Color.fromARGB(255, 223, 223, 223)),
-                      onPressed: () {
+                      onPressed: () async {
                         setState(() {
                           quantity++;
                         });
+                        try {
+                          await firestore
+                              .collection("bag")
+                              .doc(bagid)
+                              .update({"quantity": quantity});
+                        } catch (e) {
+                          print('Error Updating field');
+                        }
                       },
                       child: Icon(
                         Icons.add,
@@ -181,6 +212,7 @@ class _containeState extends State<containe> {
     ));
     ;
   }
+
   void _showContextMenu(BuildContext context) async {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final RenderBox overlay =
@@ -191,7 +223,7 @@ class _containeState extends State<containe> {
       context: context,
       position: RelativeRect.fromLTRB(
         position.dx,
-        position.dy ,
+        position.dy,
         position.dx - 200.0,
         position.dy + button.size.height + 200,
       ),
@@ -205,18 +237,39 @@ class _containeState extends State<containe> {
           child: Text('Delete from the list'),
         ),
       ],
-    ).then((selectedValue) {
+    ).then((selectedValue) async {
       if (selectedValue == null) return; // No item was selected
       switch (selectedValue) {
-        case 'lowestToHighest':
-          setState(() {
-            //data
-          });
+        case 'Addtofavorites':
+          try {
+            QuerySnapshot querySnapshot = await firestore
+                .collection("wishlist")
+                .where("product_ref", isEqualTo: productref)
+                .get();
+            if (querySnapshot.docs.isEmpty) {
+              DocumentSnapshot referenceQuery =
+                  await firestore.collection("products").doc(productref).get();
+              if (referenceQuery.exists) {
+                DocumentReference productReference = firestore
+                    .collection("wishlist")
+                    .doc(); // Generate a new DocumentReference
+                await productReference.set({
+                  "product_ref": firestore.doc(
+                      "products/$productref"), // Store a reference to the product document
+                });
+              }
+            }
+          } catch (e) {
+            print("e");
+          }
           break;
-        case 'highestToLowest':
-          setState(() {
-            //data
-          });
+        case 'Deletefromthelist':
+          try {
+            await firestore.collection("bag").doc(bagid).delete();
+          } catch (e) {
+            print(e);
+          }
+
           break;
       }
     });

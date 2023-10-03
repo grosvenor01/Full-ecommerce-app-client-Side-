@@ -453,6 +453,10 @@ class _WishlistState extends State<Wishlist> {
                         if (productRef != null) {
                           await firestore.collection("bag").add({
                             "product_ref": productRef,
+                            "color":"",
+                            "quantity":1,
+                            "size":" "
+
                           });
                           print("Product added to the bag");
                         } else {
